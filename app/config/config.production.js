@@ -1,7 +1,10 @@
 const config = {
   apiUrl: 'https://chronos-api.web-pal.com/api', // server url
   socketUrl: 'https://chronos-socket.web-pal.com', // url of socket server
+  tempoUrl: 'https://api.tempo.io/', // tempo url
+  tempoAuthToken: '', // tempo auth token
 
+  defaultWorklogAccount: '', // default worklog account
   supportLink: 'https://web-pal.atlassian.net/servicedesk/customer/portal/2',
   githubLink: 'https://github.com/web-pal/chronos-timetracker',
 

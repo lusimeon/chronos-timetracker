@@ -6,6 +6,7 @@ import querystring from 'querystring';
 
 import apiFactory from './jiraApi';
 import chronosApiFactory from './chronosApi';
+import tempoApiFactory from './tempoApi';
 import enhancedFetch from './enhancedFetch';
 
 
@@ -14,6 +15,10 @@ export const jiraApi = apiFactory({
 });
 
 export const chronosApi = chronosApiFactory({
+  makeRequest: enhancedFetch,
+});
+
+export const tempoApi = tempoApiFactory({
   makeRequest: enhancedFetch,
 });
 

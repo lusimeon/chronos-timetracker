@@ -9,6 +9,7 @@ import mixpanel from 'mixpanel-browser';
 import {
   jiraApi,
   chronosApi,
+  tempoApi,
 } from 'api';
 
 import {
@@ -188,6 +189,71 @@ export function* chronosApiAuth(ignoreCheckEnabled = false) {
   }
 }
 
+/* It needs only for a worklog attributes */
+export function* tempoApiAuth() {
+  console.log('init tempo');
+  try {
+    const authCredentials = yield eff.call(
+      getElectronStorage,
+      'last_used_account',
+    );
+    const {
+      name,
+      hostname,
+      pathname,
+      port,
+      protocol,
+    } = authCredentials;
+
+    let jwt = yield eff.call(
+      keytar.getPassword,
+      'TempoJWT',
+      `${name}_${hostname}`,
+    );
+
+    const cookiesStr = yield eff.call(
+      keytar.getPassword,
+      'Tempo',
+      `${authCredentials.name}_${authCredentials.hostname}`,
+    );
+    const cookies = JSON.parse(cookiesStr);
+    const res = yield eff.call(
+      tempoApi.getJWT,
+      {
+        body: {
+          cookies,
+          name,
+          hostname,
+          baseUrl: `${protocol}://${hostname}${port}${pathname.replace(/\/$/, '')}`,
+          protocol,
+        },
+      },
+    );
+    jwt = res.jwtToken;
+
+    yield eff.call(
+      keytar.setPassword,
+      'TempoJWT',
+      `${name}_${hostname}`,
+      jwt,
+    );
+    yield eff.call(
+      chronosApi.setJWT,
+      jwt,
+    );
+  } catch (err) {
+    yield eff.fork(
+      notify,
+      {
+        icon: 'errorIcon',
+        autoDelete: true,
+        title: 'Enable tempo error!',
+      },
+    );
+    throwError(err);
+  }
+}
+
 function* issueWindow(url) {
   let win = null;
   try {
@@ -324,6 +390,10 @@ export function* takeInitialConfigureApp() {
 
       yield eff.fork(
         chronosApiAuth,
+        true,
+      );
+      yield eff.fork(
+        tempoApiAuth,
         true,
       );
       yield eff.put(uiActions.setUiState({

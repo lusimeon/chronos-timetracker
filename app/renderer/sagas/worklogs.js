@@ -35,6 +35,7 @@ import {
 import {
   jiraApi,
   chronosApi,
+  tempoApi,
 } from 'api';
 
 import {
@@ -46,6 +47,7 @@ import {
 import {
   uploadScreenshots,
 } from './screenshots';
+import config from 'config';
 
 
 const { app } = remote.require('electron');
@@ -189,6 +191,29 @@ function* saveWorklog({
       yield eff.cancel();
     }
 
+    const defaultAccount = config.defaultWorklogAccount;
+    let account = null;
+
+    const remoteIssue = yield eff.call(
+      jiraApi.getIssueByIdOrKey,
+      {
+        params: {
+          issueIdOrKey: issueId,
+          fields: 'io.tempo.jira__account',
+        },
+      },
+    );
+
+    if (remoteIssue.fields['io.tempo.jira__account']) {
+      const issueAccountId = Number(remoteIssue.fields['io.tempo.jira__account'].id);
+      const accounts = yield eff.call(tempoApi.getAllAccounts);
+
+      if (accounts.results) {
+        account = accounts.results.find(acc => Number(acc.id) === issueAccountId);
+        account = account.key || defaultAccount;
+      }
+    }
+
     console.log('call api saveWorklog');
     const worklog = yield eff.call(
       worklogId
@@ -219,6 +244,31 @@ function* saveWorklog({
         },
       },
     );
+
+    if (worklog.id) {
+      yield eff.call(
+        tempoApi.updateWorklog,
+        {
+          params: {
+            worklogId: worklog.id,
+          },
+          body: {
+            issueKey: worklog.issueId,
+            authorAccountId: worklog.author.accountId,
+            timeSpentSeconds: worklog.timeSpentSeconds,
+            startDate: moment(worklog.started).utc().format('YYYY-MM-DD'),
+            startTime: moment(worklog.started).utc().format('HH:mm:ss'),
+            attributes: [
+              {
+                key: '_Compte_',
+                value: account,
+              },
+            ],
+          },
+        },
+      );
+    }
+
     if (isAuto) {
       const hostname = yield eff.select(getUiState('hostname'));
       const isCloud = hostname.endsWith('.atlassian.net');
